@@ -2,7 +2,7 @@
 
 A Python-based bank account management system connected to a MySQL database.
 
-The project demonstrates object-oriented programming, database integration, transaction handling, and basic error handling.
+The project demonstrates object-oriented programming, database integration, transaction handling, automated testing, and basic error handling.
 
 ## Features
 
@@ -20,6 +20,7 @@ The project demonstrates object-oriented programming, database integration, tran
 - Show all accounts of a customer
 - Savings account with withdrawal limit
 - Database rollback if a transfer fails
+- Automated tests using `unittest`
 
 ## Technologies
 
@@ -27,6 +28,7 @@ The project demonstrates object-oriented programming, database integration, tran
 - MySQL
 - mysql-connector-python
 - python-dotenv
+- unittest
 - Git
 - GitHub
 
@@ -60,6 +62,7 @@ class SavingsAccount(BankAccountSystem):
 Bank/
 ├── BankAccountSystem.PY
 ├── database.py
+├── test_bank.py
 ├── README.md
 ├── .gitignore
 └── .env
@@ -73,6 +76,12 @@ The project uses a MySQL database called:
 
 ```text
 bank_system
+```
+
+A separate database is used for automated tests:
+
+```text
+bank_system_test
 ```
 
 The main tables are:
@@ -167,6 +176,49 @@ pip install mysql-connector-python
 pip install python-dotenv
 ```
 
+## Automated Testing
+
+The project includes automated tests using Python's `unittest` framework.
+
+The test suite contains 12 automated tests covering:
+
+- Customer creation
+- Account creation
+- Deposits
+- Withdrawals
+- Transfers
+- Account deletion
+- Insufficient funds
+- Negative deposits
+- Negative withdrawals
+- Savings account withdrawal limit
+- Transfers to the same account
+- Transaction persistence in MySQL
+
+The tests use the separate MySQL database:
+
+```text
+bank_system_test
+```
+
+This prevents automated tests from changing data in the main `bank_system` database.
+
+The test setup also checks that the tests are running only on the test database.
+
+Run the tests with:
+
+```bash
+python -m unittest test_bank.py -v
+```
+
+Example result:
+
+```text
+Ran 12 tests
+
+OK
+```
+
 ## Example Usage
 
 Create the bank system:
@@ -200,19 +252,27 @@ bank.create_account(
 Deposit money:
 
 ```python
-bank.deposit("111111", 200)
+bank.deposit(
+    "111111",
+    200
+)
 ```
 
 Withdraw money:
 
 ```python
-bank.withdraw("111111", 100)
+bank.withdraw(
+    "111111",
+    100
+)
 ```
 
 Check the balance:
 
 ```python
-print(bank.get_balance("111111"))
+print(
+    bank.get_balance("111111")
+)
 ```
 
 Transfer money:
@@ -234,7 +294,9 @@ bank.show_transactions()
 Show transactions for one account:
 
 ```python
-bank.show_account_transactions("111111")
+bank.show_account_transactions(
+    "111111"
+)
 ```
 
 Show all accounts of one customer:
@@ -280,9 +342,7 @@ connection.rollback()
 
 This prevents an incomplete transfer.
 
-For example:
-
-- Money should not be removed from one account without being added to the other account.
+For example, money should not be removed from one account without being added to the other account.
 
 ## Security
 
@@ -293,6 +353,7 @@ The project includes basic security measures:
 - Parameterized SQL queries
 - Database rollback on failed operations
 - Database connection separated from the main program
+- Separate test database for automated tests
 
 Example of a parameterized query:
 
