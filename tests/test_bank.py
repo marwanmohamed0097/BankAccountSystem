@@ -1,4 +1,4 @@
-import os
+﻿import os
 import unittest
 
 
@@ -6,8 +6,8 @@ import unittest
 os.environ["DB_NAME"] = "bank_system_test"
 
 
-from BankAccountSystem import BankAccountSystem, SavingsAccount
-from database import connection, cursor
+from src.backend.bank_account_system import BankAccountSystem, SavingsAccount
+from src.backend.db.database import connection, cursor
 
 
 class TestBankAccountSystem(unittest.TestCase):

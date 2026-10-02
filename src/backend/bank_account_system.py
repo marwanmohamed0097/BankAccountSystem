@@ -1,18 +1,9 @@
-from abc import ABC, abstractmethod
+﻿from abc import ABC, abstractmethod
 
 from mysql.connector import Error, IntegrityError
 
-from database import connection, cursor
-
-
-class Customer:
-    def __init__(self, customer_id, name, address, phone, email):
-        self.customer_id = customer_id
-        self.name = name
-        self.address = address
-        self.phone = phone
-        self.email = email
-
+from .db.database import connection, cursor
+from .models.customer import Customer
 
 class Account(ABC):
     @abstractmethod
@@ -359,6 +350,7 @@ class SavingsAccount(BankAccountSystem):
 
 
 if __name__ == "__main__":
+    
     bank = BankAccountSystem()
 
     # Examples:
