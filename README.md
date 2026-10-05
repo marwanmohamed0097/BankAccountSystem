@@ -380,6 +380,31 @@ The program handles several common problems:
 - Invalid transfer
 - Database errors
 
+
+## Roadmap
+
+Planned improvements for future versions:
+
+- Add a `CurrentAccount` account type
+- Add overdraft support for current accounts
+- Add interest calculation for savings accounts
+- Add transaction date and time
+- Add unique transaction IDs
+- Add customer search
+- Add account search
+- Add transaction search
+- Add customer data updates for address, phone, and email
+- Add account status such as `ACTIVE`, `BLOCKED`, and `CLOSED`
+- Add user login and authentication
+- Add an admin role for customer and account management
+- Separate additional domain classes into the `models` package
+- Build a REST API with FastAPI
+- Add API endpoints for customers, accounts, deposits, withdrawals, transfers, and balances
+- Add Docker support
+- Add CI/CD automation with GitHub Actions
+
+The next development focus is to improve the backend structure first, then add authentication and FastAPI.
+
 ## Author
 
 Marwan Mohamed
