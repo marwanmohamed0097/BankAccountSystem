@@ -8,6 +8,7 @@ os.environ["DB_NAME"] = "bank_system_test"
 
 from src.backend.bank_account_system import BankAccountSystem, SavingsAccount
 from src.backend.db.database import connection, cursor
+from src.backend.models.current_account import CurrentAccount
 
 
 class TestBankAccountSystem(unittest.TestCase):
@@ -264,6 +265,41 @@ class TestBankAccountSystem(unittest.TestCase):
         self.assertIsNotNone(transaction)
         self.assertEqual(transaction[0], "Deposit")
         self.assertEqual(float(transaction[1]), 200.0)
+
+
+    def test_current_account_overdraft(self):
+        current = CurrentAccount(overdraft_limit=500)
+
+        current.create_account(
+            "TEST013",
+            100
+        )
+
+        current.withdraw(
+            "TEST013",
+            400
+        )
+
+        balance = current.get_balance("TEST013")
+
+        self.assertEqual(balance, -300)
+
+    def test_current_account_overdraft_limit(self):
+        current = CurrentAccount(overdraft_limit=500)
+
+        current.create_account(
+            "TEST014",
+            100
+        )
+
+        current.withdraw(
+            "TEST014",
+            700
+        )
+
+        balance = current.get_balance("TEST014")
+
+        self.assertEqual(balance, 100)
 
 
 if __name__ == "__main__":
