@@ -9,6 +9,7 @@ os.environ["DB_NAME"] = "bank_system_test"
 from src.backend.bank_account_system import BankAccountSystem, SavingsAccount
 from src.backend.db.database import connection, cursor
 from src.backend.models.current_account import CurrentAccount
+from src.backend.auth.auth_service import AuthService
 
 
 class TestBankAccountSystem(unittest.TestCase):
@@ -31,6 +32,7 @@ class TestBankAccountSystem(unittest.TestCase):
         cursor.execute("DELETE FROM transactions")
         cursor.execute("DELETE FROM accounts")
         cursor.execute("DELETE FROM customers")
+        cursor.execute("DELETE FROM users")
 
         connection.commit()
 
@@ -42,6 +44,7 @@ class TestBankAccountSystem(unittest.TestCase):
         cursor.execute("DELETE FROM transactions")
         cursor.execute("DELETE FROM accounts")
         cursor.execute("DELETE FROM customers")
+        cursor.execute("DELETE FROM users")
 
         connection.commit()
 
@@ -284,6 +287,7 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, -300)
 
+
     def test_current_account_overdraft_limit(self):
         current = CurrentAccount(overdraft_limit=500)
 
@@ -300,6 +304,70 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = current.get_balance("TEST014")
 
         self.assertEqual(balance, 100)
+
+
+    def test_create_user_password_is_hashed(self):
+        auth = AuthService()
+
+        auth.create_user(
+            "marwan",
+            "123456"
+        )
+
+        cursor.execute(
+            """
+            SELECT password_hash
+            FROM users
+            WHERE username = %s
+            """,
+            ("marwan",)
+        )
+
+        result = cursor.fetchone()
+
+        self.assertIsNotNone(result)
+        self.assertNotEqual(result[0], "123456")
+
+    def test_login_success(self):
+        auth = AuthService()
+
+        auth.create_user(
+            "marwan",
+            "123456"
+        )
+
+        result = auth.login(
+            "marwan",
+            "123456"
+        )
+
+        self.assertTrue(result)
+
+    def test_login_wrong_password(self):
+        auth = AuthService()
+
+        auth.create_user(
+            "marwan",
+            "123456"
+        )
+
+        result = auth.login(
+            "marwan",
+            "wrongpassword"
+        )
+
+        self.assertFalse(result)
+
+
+    def test_login_user_not_found(self):
+        auth = AuthService()
+
+        result = auth.login(
+            "unknown_user",
+            "123456"
+        )
+
+        self.assertFalse(result)
 
 
 if __name__ == "__main__":
