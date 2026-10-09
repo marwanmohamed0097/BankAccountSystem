@@ -1,11 +1,22 @@
 import bcrypt
 
+from mysql.connector import Error, IntegrityError
 from src.backend.db.database import connection, cursor
 
 
 class AuthService:
 
-    def create_user(self, username, password, role="USER"):
+    def create_user(self, username, password):
+        role = "USER"
+
+        if not username or len(username) < 3:
+            print("Username must be at least 3 characters.")
+            return False
+
+        if len(password) < 8:
+            print("Password must be at least 8 characters.")
+            return False
+
         password_hash = bcrypt.hashpw(
             password.encode("utf-8"),
             bcrypt.gensalt()
@@ -16,12 +27,26 @@ class AuthService:
         VALUES (%s, %s, %s)
         """
 
-        cursor.execute(
-            sql,
-            (username, password_hash.decode("utf-8"), role)
-        )
+        try:
+            cursor.execute(
+                sql,
+                (username, password_hash.decode("utf-8"), role)
+            )
 
-        connection.commit()
+            connection.commit()
+
+            print("User created successfully.")
+            return True
+
+        except IntegrityError:
+            connection.rollback()
+            print("Username already exists.")
+            return False
+
+        except Error as error:
+            connection.rollback()
+            print("Database error:", error)
+            return False
 
     def login(self, username, password):
         sql = """

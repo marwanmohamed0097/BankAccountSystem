@@ -26,7 +26,6 @@ class TestBankAccountSystem(unittest.TestCase):
                 "Tests must only run on bank_system_test!"
             )
 
-
     def setUp(self):
         # Clean database before every test
         cursor.execute("DELETE FROM transactions")
@@ -38,7 +37,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.bank = BankAccountSystem()
 
-
     def tearDown(self):
         # Clean database after every test
         cursor.execute("DELETE FROM transactions")
@@ -48,13 +46,12 @@ class TestBankAccountSystem(unittest.TestCase):
 
         connection.commit()
 
-
     def test_create_customer(self):
         self.bank.create_customer(
             1,
             "Test User",
             "Essen",
-            "123456",
+            "12345678",
             "test@test.de"
         )
 
@@ -70,7 +67,6 @@ class TestBankAccountSystem(unittest.TestCase):
         result = cursor.fetchone()
 
         self.assertIsNotNone(result)
-
 
     def test_create_account(self):
         self.bank.create_customer(
@@ -91,7 +87,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, 1000)
 
-
     def test_deposit(self):
         self.bank.create_account(
             "TEST002",
@@ -106,7 +101,6 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = self.bank.get_balance("TEST002")
 
         self.assertEqual(balance, 1200)
-
 
     def test_withdraw(self):
         self.bank.create_account(
@@ -123,7 +117,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, 700)
 
-
     def test_insufficient_funds(self):
         self.bank.create_account(
             "TEST004",
@@ -138,7 +131,6 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = self.bank.get_balance("TEST004")
 
         self.assertEqual(balance, 100)
-
 
     def test_transfer(self):
         self.bank.create_account(
@@ -163,7 +155,6 @@ class TestBankAccountSystem(unittest.TestCase):
         self.assertEqual(balance_1, 800)
         self.assertEqual(balance_2, 700)
 
-
     def test_delete_account(self):
         self.bank.create_account(
             "TEST007",
@@ -174,7 +165,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.bank.get_balance("TEST007")
-
 
     def test_savings_account_limit(self):
         savings = SavingsAccount()
@@ -193,7 +183,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, 1000)
 
-
     def test_negative_deposit(self):
         self.bank.create_account(
             "TEST009",
@@ -208,7 +197,6 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = self.bank.get_balance("TEST009")
 
         self.assertEqual(balance, 1000)
-
 
     def test_negative_withdraw(self):
         self.bank.create_account(
@@ -225,7 +213,6 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, 1000)
 
-
     def test_transfer_to_same_account(self):
         self.bank.create_account(
             "TEST011",
@@ -241,7 +228,6 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = self.bank.get_balance("TEST011")
 
         self.assertEqual(balance, 1000)
-
 
     def test_transaction_saved_after_deposit(self):
         self.bank.create_account(
@@ -269,7 +255,6 @@ class TestBankAccountSystem(unittest.TestCase):
         self.assertEqual(transaction[0], "Deposit")
         self.assertEqual(float(transaction[1]), 200.0)
 
-
     def test_current_account_overdraft(self):
         current = CurrentAccount(overdraft_limit=500)
 
@@ -286,7 +271,6 @@ class TestBankAccountSystem(unittest.TestCase):
         balance = current.get_balance("TEST013")
 
         self.assertEqual(balance, -300)
-
 
     def test_current_account_overdraft_limit(self):
         current = CurrentAccount(overdraft_limit=500)
@@ -305,13 +289,12 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertEqual(balance, 100)
 
-
     def test_create_user_password_is_hashed(self):
         auth = AuthService()
 
         auth.create_user(
             "marwan",
-            "123456"
+            "12345678"
         )
 
         cursor.execute(
@@ -326,19 +309,19 @@ class TestBankAccountSystem(unittest.TestCase):
         result = cursor.fetchone()
 
         self.assertIsNotNone(result)
-        self.assertNotEqual(result[0], "123456")
+        self.assertNotEqual(result[0], "12345678")
 
     def test_login_success(self):
         auth = AuthService()
 
         auth.create_user(
             "marwan",
-            "123456"
+            "12345678"
         )
 
         result = auth.login(
             "marwan",
-            "123456"
+            "12345678"
         )
 
         self.assertTrue(result)
@@ -348,7 +331,7 @@ class TestBankAccountSystem(unittest.TestCase):
 
         auth.create_user(
             "marwan",
-            "123456"
+            "12345678"
         )
 
         result = auth.login(
@@ -358,13 +341,80 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertFalse(result)
 
-
     def test_login_user_not_found(self):
         auth = AuthService()
 
         result = auth.login(
             "unknown_user",
+            "12345678"
+        )
+
+        self.assertFalse(result)
+
+    def test_duplicate_username(self):
+        auth = AuthService()
+
+        first = auth.create_user(
+            "marwan",
+            "12345678"
+        )
+
+        second = auth.create_user(
+            "marwan",
+            "abcdefgh"
+        )
+
+        self.assertTrue(first)
+        self.assertFalse(second)
+
+    def test_user_role_is_user_by_default(self):
+        auth = AuthService()
+
+        auth.create_user(
+            "marwan",
+            "12345678"
+        )
+
+        cursor.execute(
+            """
+            SELECT role
+            FROM users
+            WHERE username = %s
+            """,
+            ("marwan",)
+        )
+
+        result = cursor.fetchone()
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "USER")
+
+    def test_short_password_is_rejected(self):
+        auth = AuthService()
+
+        result = auth.create_user(
+            "marwan",
             "123456"
+        )
+
+        self.assertFalse(result)
+
+    def test_short_username_is_rejected(self):
+        auth = AuthService()
+
+        result = auth.create_user(
+            "ma",
+            "12345678"
+        )
+
+        self.assertFalse(result)
+
+    def test_empty_username_is_rejected(self):
+        auth = AuthService()
+
+        result = auth.create_user(
+            "",
+            "12345678"
         )
 
         self.assertFalse(result)
