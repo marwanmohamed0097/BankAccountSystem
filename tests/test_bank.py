@@ -1,4 +1,4 @@
-﻿import os
+import os
 import unittest
 
 
@@ -242,9 +242,13 @@ class TestBankAccountSystem(unittest.TestCase):
 
         cursor.execute(
             """
-            SELECT type, amount
+            SELECT
+                transactions.transaction_type,
+                transactions.amount
             FROM transactions
-            WHERE account_number = %s
+            JOIN accounts
+                ON transactions.account_id = accounts.id
+            WHERE accounts.account_number = %s
             """,
             ("TEST012",)
         )

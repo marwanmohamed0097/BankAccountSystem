@@ -1,11 +1,13 @@
-﻿from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 
 from mysql.connector import Error, IntegrityError
 
 from .db.database import connection, cursor
 from .models.customer import Customer
 
+
 class Account(ABC):
+
     @abstractmethod
     def withdraw(self, account_number, amount):
         pass
@@ -13,9 +15,22 @@ class Account(ABC):
 
 class BankAccountSystem(Account):
 
-    def create_customer(self, customer_id, name, address, phone, email):
+    def create_customer(
+        self,
+        customer_id,
+        name,
+        address,
+        phone,
+        email
+    ):
         sql = """
-        INSERT INTO customers (customer_id, name, address, phone, email)
+        INSERT INTO customers (
+            customer_id,
+            name,
+            address,
+            phone,
+            email
+        )
         VALUES (%s, %s, %s, %s, %s)
         """
 
@@ -30,6 +45,7 @@ class BankAccountSystem(Account):
         try:
             cursor.execute(sql, values)
             connection.commit()
+
             print("Customer created successfully")
 
         except IntegrityError:
@@ -40,19 +56,22 @@ class BankAccountSystem(Account):
             connection.rollback()
             print("Database error:", error)
 
-
     def customer_exists(self, customer_id):
+
         sql = """
         SELECT customer_id
         FROM customers
         WHERE customer_id = %s
         """
 
-        cursor.execute(sql, (customer_id,))
+        cursor.execute(
+            sql,
+            (customer_id,)
+        )
+
         result = cursor.fetchone()
 
         return result is not None
-
 
     def create_account(
         self,
@@ -60,17 +79,23 @@ class BankAccountSystem(Account):
         initial_balance=0,
         customer_id=None
     ):
+
         if initial_balance < 0:
             print("Initial balance cannot be negative.")
             return
 
         if customer_id is not None:
+
             if not self.customer_exists(customer_id):
                 print("Customer does not exist.")
                 return
 
         sql = """
-        INSERT INTO accounts (account_number, balance, customer_id)
+        INSERT INTO accounts (
+            account_number,
+            balance,
+            customer_id
+        )
         VALUES (%s, %s, %s)
         """
 
@@ -81,8 +106,13 @@ class BankAccountSystem(Account):
         )
 
         try:
-            cursor.execute(sql, values)
+            cursor.execute(
+                sql,
+                values
+            )
+
             connection.commit()
+
             print("Account created successfully")
 
         except IntegrityError:
@@ -93,7 +123,6 @@ class BankAccountSystem(Account):
             connection.rollback()
             print("Database error:", error)
 
-
     def save_transaction(
         self,
         account_number,
@@ -101,23 +130,34 @@ class BankAccountSystem(Account):
         amount
     ):
         sql = """
-        INSERT INTO transactions (account_number, type, amount)
-        VALUES (%s, %s, %s)
-        """
-
-        values = (
-            account_number,
+        INSERT INTO transactions (
+            account_id,
             transaction_type,
             amount
         )
+        SELECT id, %s, %s
+        FROM accounts
+        WHERE account_number = %s
+        """
 
-        cursor.execute(sql, values)
+        cursor.execute(
+            sql,
+            (
+                transaction_type,
+                amount,
+                account_number
+            )
+        )
 
+    def deposit(
+        self,
+        account_number,
+        amount
+    ):
 
-    def deposit(self, account_number, amount):
         if amount <= 0:
             print("Deposit amount must be positive.")
-            return
+            return False
 
         sql = """
         UPDATE accounts
@@ -126,11 +166,20 @@ class BankAccountSystem(Account):
         """
 
         try:
-            cursor.execute(sql, (amount, account_number))
+            cursor.execute(
+                sql,
+                (
+                    amount,
+                    account_number
+                )
+            )
 
             if cursor.rowcount == 0:
+                connection.rollback()
+
                 print("Account does not exist.")
-                return
+
+                return False
 
             self.save_transaction(
                 account_number,
@@ -139,43 +188,76 @@ class BankAccountSystem(Account):
             )
 
             connection.commit()
+
             print("Deposit successful")
+
+            return True
 
         except Error as error:
             connection.rollback()
-            print("Deposit failed:", error)
 
+            print(
+                "Deposit failed:",
+                error
+            )
 
-    def get_balance(self, account_number):
+            return False
+
+    def get_balance(
+        self,
+        account_number
+    ):
+
         sql = """
         SELECT balance
         FROM accounts
         WHERE account_number = %s
         """
 
-        cursor.execute(sql, (account_number,))
+        cursor.execute(
+            sql,
+            (account_number,)
+        )
+
         result = cursor.fetchone()
 
         if result is None:
-            raise ValueError("Account does not exist.")
+            raise ValueError(
+                "Account does not exist."
+            )
 
         return result[0]
 
+    def withdraw(
+        self,
+        account_number,
+        amount
+    ):
 
-    def withdraw(self, account_number, amount):
         if amount <= 0:
-            print("Withdrawal amount must be positive.")
+            print(
+                "Withdrawal amount must be positive."
+            )
+
             return
 
         try:
-            balance = self.get_balance(account_number)
+            balance = self.get_balance(
+                account_number
+            )
 
         except ValueError:
-            print("Account does not exist.")
+            print(
+                "Account does not exist."
+            )
+
             return
 
         if balance < amount:
-            print("Insufficient funds.")
+            print(
+                "Insufficient funds."
+            )
+
             return
 
         sql = """
@@ -185,7 +267,13 @@ class BankAccountSystem(Account):
         """
 
         try:
-            cursor.execute(sql, (amount, account_number))
+            cursor.execute(
+                sql,
+                (
+                    amount,
+                    account_number
+                )
+            )
 
             self.save_transaction(
                 account_number,
@@ -194,32 +282,61 @@ class BankAccountSystem(Account):
             )
 
             connection.commit()
-            print("Withdrawal successful")
+
+            print(
+                "Withdrawal successful"
+            )
 
         except Error as error:
             connection.rollback()
-            print("Withdrawal failed:", error)
 
+            print(
+                "Withdrawal failed:",
+                error
+            )
 
-    def transfer(self, from_account, to_account, amount):
+    def transfer(
+        self,
+        from_account,
+        to_account,
+        amount
+    ):
+
         if from_account == to_account:
-            print("Cannot transfer to the same account.")
+            print(
+                "Cannot transfer to the same account."
+            )
+
             return
 
         if amount <= 0:
-            print("Transfer amount must be positive.")
+            print(
+                "Transfer amount must be positive."
+            )
+
             return
 
         try:
-            from_balance = self.get_balance(from_account)
-            self.get_balance(to_account)
+            from_balance = self.get_balance(
+                from_account
+            )
+
+            self.get_balance(
+                to_account
+            )
 
         except ValueError:
-            print("One of the accounts does not exist.")
+            print(
+                "One of the accounts does not exist."
+            )
+
             return
 
         if from_balance < amount:
-            print("Insufficient funds.")
+            print(
+                "Insufficient funds."
+            )
+
             return
 
         try:
@@ -231,7 +348,10 @@ class BankAccountSystem(Account):
 
             cursor.execute(
                 sql,
-                (amount, from_account)
+                (
+                    amount,
+                    from_account
+                )
             )
 
             sql = """
@@ -242,7 +362,10 @@ class BankAccountSystem(Account):
 
             cursor.execute(
                 sql,
-                (amount, to_account)
+                (
+                    amount,
+                    to_account
+                )
             )
 
             self.save_transaction(
@@ -258,108 +381,160 @@ class BankAccountSystem(Account):
             )
 
             connection.commit()
-            print("Transfer successful")
+
+            print(
+                "Transfer successful"
+            )
 
         except Error as error:
             connection.rollback()
-            print("Transfer failed:", error)
 
+            print(
+                "Transfer failed:",
+                error
+            )
 
-    def delete_account(self, account_number):
+    def delete_account(
+        self,
+        account_number
+    ):
+
         sql = """
         DELETE FROM accounts
         WHERE account_number = %s
         """
 
         try:
-            cursor.execute(sql, (account_number,))
+            cursor.execute(
+                sql,
+                (account_number,)
+            )
 
             if cursor.rowcount == 0:
-                print("Account does not exist.")
+                print(
+                    "Account does not exist."
+                )
+
                 return
 
             connection.commit()
-            print("Account deleted successfully")
+
+            print(
+                "Account deleted successfully"
+            )
 
         except Error as error:
             connection.rollback()
-            print("Delete failed:", error)
 
+            print(
+                "Delete failed:",
+                error
+            )
 
     def show_transactions(self):
+
         sql = """
         SELECT *
         FROM transactions
         """
 
         cursor.execute(sql)
+
         results = cursor.fetchall()
 
         if not results:
-            print("No transactions.")
+            print(
+                "No transactions."
+            )
+
             return
 
         for transaction in results:
             print(transaction)
 
+    def show_account_transactions(
+        self,
+        account_number
+    ):
 
-    def show_account_transactions(self, account_number):
         sql = """
         SELECT *
         FROM transactions
         WHERE account_number = %s
         """
 
-        cursor.execute(sql, (account_number,))
+        cursor.execute(
+            sql,
+            (account_number,)
+        )
+
         results = cursor.fetchall()
 
         if not results:
-            print("No transactions.")
+            print(
+                "No transactions."
+            )
+
             return
 
         for transaction in results:
             print(transaction)
 
+    def show_customer_accounts(
+        self,
+        customer_id
+    ):
 
-    def show_customer_accounts(self, customer_id):
         sql = """
         SELECT account_number, balance
         FROM accounts
         WHERE customer_id = %s
         """
 
-        cursor.execute(sql, (customer_id,))
+        cursor.execute(
+            sql,
+            (customer_id,)
+        )
+
         results = cursor.fetchall()
 
         if not results:
-            print("Customer has no accounts.")
+            print(
+                "Customer has no accounts."
+            )
+
             return
 
         for account in results:
             print(account)
 
 
-class SavingsAccount(BankAccountSystem):
+class SavingsAccount(
+    BankAccountSystem
+):
 
-    def withdraw(self, account_number, amount):
+    def withdraw(
+        self,
+        account_number,
+        amount
+    ):
+
         if amount > 500:
-            print("Maximum withdrawal is 500 Euro.")
+            print(
+                "Maximum withdrawal is 500 Euro."
+            )
+
             return
 
-        super().withdraw(account_number, amount)
+        super().withdraw(
+            account_number,
+            amount
+        )
 
 
 if __name__ == "__main__":
-    
-    bank = BankAccountSystem()
 
-    # Examples:
-    # bank.create_customer(1, "Marwan", "Essen", "0123456789", "mail@example.de")
-    # bank.create_account("111111", 1000, 1)
-    # bank.deposit("111111", 200)
-    # bank.withdraw("111111", 100)
-    # print(bank.get_balance("111111"))
-    # bank.show_account_transactions("111111")
+    bank = BankAccountSystem()
 
     cursor.close()
     connection.close()

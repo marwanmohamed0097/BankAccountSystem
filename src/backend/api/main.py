@@ -117,15 +117,26 @@ def get_balance(account_number: str):
 @app.post("/deposit")
 def deposit(data: AmountRequest):
 
-    bank.deposit(
+    success = bank.deposit(
         data.account_number,
         data.amount
     )
 
-    return {
-        "message": "Deposit request completed"
-    }
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Deposit failed"
+        )
 
+    balance = bank.get_balance(
+        data.account_number
+    )
+
+    return {
+        "message": "Deposit successful",
+        "account_number": data.account_number,
+        "balance": balance
+    }
 
 @app.post("/withdraw")
 def withdraw(data: AmountRequest):
@@ -159,9 +170,13 @@ def get_transactions(account_number: str):
 
     cursor.execute(
         """
-        SELECT type, amount
+        SELECT
+            transactions.transaction_type,
+            transactions.amount
         FROM transactions
-        WHERE account_number = %s
+        JOIN accounts
+            ON transactions.account_id = accounts.id
+        WHERE accounts.account_number = %s
         """,
         (account_number,)
     )
