@@ -85,14 +85,21 @@ def login(data: LoginRequest):
 @app.post("/accounts")
 def create_account(data: AccountRequest):
 
-    bank.create_account(
+    success = bank.create_account(
         data.account_number,
         data.initial_balance,
         data.customer_id
     )
 
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Account could not be created"
+        )
+
     return {
-        "message": "Account created"
+        "message": "Account created successfully",
+        "account_number": data.account_number
     }
 
 
@@ -141,32 +148,63 @@ def deposit(data: AmountRequest):
 @app.post("/withdraw")
 def withdraw(data: AmountRequest):
 
-    bank.withdraw(
+    success = bank.withdraw(
         data.account_number,
         data.amount
     )
 
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Withdrawal failed"
+        )
+
+    balance = bank.get_balance(
+        data.account_number
+    )
+
     return {
-        "message": "Withdrawal request completed"
+        "message": "Withdrawal successful",
+        "account_number": data.account_number,
+        "balance": balance
     }
 
 
 @app.post("/transfer")
 def transfer(data: TransferRequest):
 
-    bank.transfer(
+    success = bank.transfer(
         data.from_account,
         data.to_account,
         data.amount
     )
 
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Transfer failed"
+        )
+
     return {
-        "message": "Transfer request completed"
+        "message": "Transfer successful",
+        "from_account": data.from_account,
+        "from_balance": bank.get_balance(data.from_account),
+        "to_account": data.to_account,
+        "to_balance": bank.get_balance(data.to_account)
     }
 
 
 @app.get("/transactions/{account_number}")
 def get_transactions(account_number: str):
+
+    try:
+        bank.get_balance(account_number)
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Account does not exist"
+        )
 
     cursor.execute(
         """
@@ -198,8 +236,18 @@ def get_transactions(account_number: str):
 @app.delete("/accounts/{account_number}")
 def delete_account(account_number: str):
 
-    bank.delete_account(account_number)
+    success = bank.delete_account(
+        account_number
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Account does not exist or could not be deleted"
+        )
 
     return {
-        "message": "Account deleted"
+        "message": "Account deleted successfully",
+        "account_number": account_number
     }
+

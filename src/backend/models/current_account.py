@@ -1,4 +1,6 @@
-﻿from src.backend.bank_account_system import BankAccountSystem
+from mysql.connector import Error
+
+from src.backend.bank_account_system import BankAccountSystem
 from src.backend.db.database import connection, cursor
 
 
@@ -11,13 +13,18 @@ class CurrentAccount(BankAccountSystem):
 
         if amount <= 0:
             print("Withdrawal amount must be positive.")
-            return
+            return False
 
-        balance = self.get_balance(account_number)
+        try:
+            balance = self.get_balance(account_number)
+
+        except ValueError:
+            print("Account does not exist.")
+            return False
 
         if balance + self.overdraft_limit < amount:
             print("Overdraft limit exceeded.")
-            return
+            return False
 
         sql = """
         UPDATE accounts
@@ -31,6 +38,11 @@ class CurrentAccount(BankAccountSystem):
                 (amount, account_number)
             )
 
+            if cursor.rowcount == 0:
+                connection.rollback()
+                print("Account does not exist.")
+                return False
+
             self.save_transaction(
                 account_number,
                 "Withdraw",
@@ -38,8 +50,11 @@ class CurrentAccount(BankAccountSystem):
             )
 
             connection.commit()
-            print("Withdrawal successful")
 
-        except Exception as error:
+            print("Withdrawal successful")
+            return True
+
+        except Error as error:
             connection.rollback()
             print("Withdrawal failed:", error)
+            return False

@@ -424,5 +424,148 @@ class TestBankAccountSystem(unittest.TestCase):
         self.assertFalse(result)
 
 
+    def test_create_account_returns_true(self):
+        result = self.bank.create_account(
+            "RETURN001",
+            100
+        )
+
+        self.assertTrue(result)
+
+    def test_create_account_returns_false(self):
+        result = self.bank.create_account(
+            "RETURN002",
+            -100
+        )
+
+        self.assertFalse(result)
+
+    def test_deposit_returns_true(self):
+        self.bank.create_account(
+            "RETURN003",
+            100
+        )
+
+        result = self.bank.deposit(
+            "RETURN003",
+            50
+        )
+
+        self.assertTrue(result)
+
+    def test_withdraw_returns_true(self):
+        self.bank.create_account(
+            "RETURN004",
+            500
+        )
+
+        result = self.bank.withdraw(
+            "RETURN004",
+            100
+        )
+
+        self.assertTrue(result)
+
+    def test_withdraw_returns_false(self):
+        self.bank.create_account(
+            "RETURN005",
+            100
+        )
+
+        result = self.bank.withdraw(
+            "RETURN005",
+            500
+        )
+
+        self.assertFalse(result)
+
+    def test_transfer_returns_true(self):
+        self.bank.create_account(
+            "RETURN006",
+            500
+        )
+
+        self.bank.create_account(
+            "RETURN007",
+            100
+        )
+
+        result = self.bank.transfer(
+            "RETURN006",
+            "RETURN007",
+            200
+        )
+
+        self.assertTrue(result)
+
+    def test_transfer_returns_false(self):
+        self.bank.create_account(
+            "RETURN008",
+            500
+        )
+
+        result = self.bank.transfer(
+            "RETURN008",
+            "RETURN008",
+            100
+        )
+
+        self.assertFalse(result)
+
+    def test_delete_account_returns_true(self):
+        self.bank.create_account(
+            "RETURN009",
+            100
+        )
+
+        result = self.bank.delete_account(
+            "RETURN009"
+        )
+
+        self.assertTrue(result)
+
+    def test_delete_account_returns_false(self):
+        result = self.bank.delete_account(
+            "DOES_NOT_EXIST"
+        )
+
+        self.assertFalse(result)
+
+    def test_current_account_withdraw_returns_true(self):
+        current = CurrentAccount(
+            overdraft_limit=500
+        )
+
+        current.create_account(
+            "RETURN010",
+            100
+        )
+
+        result = current.withdraw(
+            "RETURN010",
+            400
+        )
+
+        self.assertTrue(result)
+
+    def test_current_account_withdraw_returns_false(self):
+        current = CurrentAccount(
+            overdraft_limit=500
+        )
+
+        current.create_account(
+            "RETURN011",
+            100
+        )
+
+        result = current.withdraw(
+            "RETURN011",
+            700
+        )
+
+        self.assertFalse(result)
+
+
+
 if __name__ == "__main__":
     unittest.main()
