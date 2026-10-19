@@ -2,7 +2,7 @@ import bcrypt
 
 from mysql.connector import Error, IntegrityError
 
-from src.backend.db.database import connection, cursor
+from src.backend.db.database import get_connection
 
 
 class AuthService:
@@ -32,7 +32,13 @@ class AuthService:
         VALUES (%s, %s, %s)
         """
 
+        connection = None
+        cursor = None
+
         try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
             cursor.execute(
                 sql,
                 (
@@ -43,18 +49,30 @@ class AuthService:
             )
 
             connection.commit()
+
             print("User created successfully.")
             return True
 
         except IntegrityError:
-            connection.rollback()
+            if connection:
+                connection.rollback()
+
             print("Username already exists.")
             return False
 
         except Error as error:
-            connection.rollback()
+            if connection:
+                connection.rollback()
+
             print("Database error:", error)
             return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if connection and connection.is_connected():
+                connection.close()
 
     def authenticate(self, username, password):
         sql = """
@@ -67,36 +85,54 @@ class AuthService:
         WHERE username = %s
         """
 
-        cursor.execute(
-            sql,
-            (username,)
-        )
+        connection = None
+        cursor = None
 
-        user = cursor.fetchone()
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
 
-        if user is None:
-            print("User does not exist.")
+            cursor.execute(
+                sql,
+                (username,)
+            )
+
+            user = cursor.fetchone()
+
+            if user is None:
+                print("User does not exist.")
+                return None
+
+            user_id = user[0]
+            db_username = user[1]
+            password_hash = user[2]
+            role = user[3]
+
+            valid_password = bcrypt.checkpw(
+                password.encode("utf-8"),
+                password_hash.encode("utf-8")
+            )
+
+            if not valid_password:
+                print("Wrong password.")
+                return None
+
+            return {
+                "id": user_id,
+                "username": db_username,
+                "role": role
+            }
+
+        except Error as error:
+            print("Database error:", error)
             return None
 
-        user_id = user[0]
-        db_username = user[1]
-        password_hash = user[2]
-        role = user[3]
+        finally:
+            if cursor:
+                cursor.close()
 
-        valid_password = bcrypt.checkpw(
-            password.encode("utf-8"),
-            password_hash.encode("utf-8")
-        )
-
-        if not valid_password:
-            print("Wrong password.")
-            return None
-
-        return {
-            "id": user_id,
-            "username": db_username,
-            "role": role
-        }
+            if connection and connection.is_connected():
+                connection.close()
 
     def login(self, username, password):
         user = self.authenticate(
