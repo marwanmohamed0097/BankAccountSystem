@@ -1,6 +1,7 @@
 import bcrypt
 
 from mysql.connector import Error, IntegrityError
+
 from src.backend.db.database import connection, cursor
 
 
@@ -23,18 +24,25 @@ class AuthService:
         )
 
         sql = """
-        INSERT INTO users (username, password_hash, role)
+        INSERT INTO users (
+            username,
+            password_hash,
+            role
+        )
         VALUES (%s, %s, %s)
         """
 
         try:
             cursor.execute(
                 sql,
-                (username, password_hash.decode("utf-8"), role)
+                (
+                    username,
+                    password_hash.decode("utf-8"),
+                    role
+                )
             )
 
             connection.commit()
-
             print("User created successfully.")
             return True
 
@@ -48,9 +56,13 @@ class AuthService:
             print("Database error:", error)
             return False
 
-    def login(self, username, password):
+    def authenticate(self, username, password):
         sql = """
-        SELECT password_hash, role
+        SELECT
+            id,
+            username,
+            password_hash,
+            role
         FROM users
         WHERE username = %s
         """
@@ -64,18 +76,32 @@ class AuthService:
 
         if user is None:
             print("User does not exist.")
-            return False
+            return None
 
-        password_hash = user[0]
-        role = user[1]
+        user_id = user[0]
+        db_username = user[1]
+        password_hash = user[2]
+        role = user[3]
 
-        if bcrypt.checkpw(
+        valid_password = bcrypt.checkpw(
             password.encode("utf-8"),
             password_hash.encode("utf-8")
-        ):
-            print("Login successful.")
-            print("Role:", role)
-            return True
+        )
 
-        print("Wrong password.")
-        return False
+        if not valid_password:
+            print("Wrong password.")
+            return None
+
+        return {
+            "id": user_id,
+            "username": db_username,
+            "role": role
+        }
+
+    def login(self, username, password):
+        user = self.authenticate(
+            username,
+            password
+        )
+
+        return user is not None

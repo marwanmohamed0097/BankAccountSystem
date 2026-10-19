@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+﻿from abc import ABC, abstractmethod
 
 from mysql.connector import Error, IntegrityError
 
@@ -77,7 +77,8 @@ class BankAccountSystem(Account):
         self,
         account_number,
         initial_balance=0,
-        customer_id=None
+        customer_id=None,
+        user_id=None
     ):
 
         if initial_balance < 0:
@@ -86,7 +87,9 @@ class BankAccountSystem(Account):
 
         if customer_id is not None:
 
-            if not self.customer_exists(customer_id):
+            if not self.customer_exists(
+                customer_id
+            ):
                 print("Customer does not exist.")
                 return False
 
@@ -94,19 +97,25 @@ class BankAccountSystem(Account):
         INSERT INTO accounts (
             account_number,
             balance,
-            customer_id
+            customer_id,
+            user_id
         )
-        VALUES (%s, %s, %s)
+        VALUES (%s, %s, %s, %s)
         """
 
         values = (
             account_number,
             initial_balance,
-            customer_id
+            customer_id,
+            user_id
         )
 
         try:
-            cursor.execute(sql, values)
+            cursor.execute(
+                sql,
+                values
+            )
+
             connection.commit()
 
             print("Account created successfully")
@@ -121,7 +130,6 @@ class BankAccountSystem(Account):
             connection.rollback()
             print("Database error:", error)
             return False
-
 
     def save_transaction(
         self,

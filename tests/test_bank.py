@@ -1,7 +1,6 @@
 import os
 import unittest
 
-
 # Use test database before importing the main program
 os.environ["DB_NAME"] = "bank_system_test"
 
@@ -10,6 +9,8 @@ from src.backend.bank_account_system import BankAccountSystem, SavingsAccount
 from src.backend.db.database import connection, cursor
 from src.backend.models.current_account import CurrentAccount
 from src.backend.auth.auth_service import AuthService
+from src.backend.api.main import app
+from fastapi.testclient import TestClient
 
 
 class TestBankAccountSystem(unittest.TestCase):
@@ -565,7 +566,292 @@ class TestBankAccountSystem(unittest.TestCase):
 
         self.assertFalse(result)
 
+class TestApiSecurity(unittest.TestCase):
 
+    def setUp(self):
+        cursor.execute("DELETE FROM transactions")
+        cursor.execute("DELETE FROM accounts")
+        cursor.execute("DELETE FROM customers")
+        cursor.execute("DELETE FROM users")
+
+        connection.commit()
+
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        cursor.execute("DELETE FROM transactions")
+        cursor.execute("DELETE FROM accounts")
+        cursor.execute("DELETE FROM customers")
+        cursor.execute("DELETE FROM users")
+
+        connection.commit()
+
+    def create_user_and_token(
+        self,
+        username
+    ):
+        register = self.client.post(
+            "/register",
+            json={
+                "username": username,
+                "password": "12345678"
+            }
+        )
+
+        self.assertEqual(
+            register.status_code,
+            200
+        )
+
+        login = self.client.post(
+            "/login",
+            json={
+                "username": username,
+                "password": "12345678"
+            }
+        )
+
+        self.assertEqual(
+            login.status_code,
+            200
+        )
+
+        return login.json()[
+            "access_token"
+        ]
+
+    def auth_header(
+        self,
+        token
+    ):
+        return {
+            "Authorization":
+                f"Bearer {token}"
+        }
+
+    def test_login_returns_token(self):
+        token = self.create_user_and_token(
+            "jwtuser"
+        )
+
+        self.assertIsInstance(
+            token,
+            str
+        )
+
+        self.assertGreater(
+            len(token),
+            20
+        )
+
+    def test_me_requires_token(self):
+        response = self.client.get(
+            "/me"
+        )
+
+        self.assertIn(
+            response.status_code,
+            (401, 403)
+        )
+
+    def test_me_with_token(self):
+        token = self.create_user_and_token(
+            "meuser"
+        )
+
+        response = self.client.get(
+            "/me",
+            headers=self.auth_header(
+                token
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.json()["username"],
+            "meuser"
+        )
+
+    def test_account_has_owner(self):
+        token = self.create_user_and_token(
+            "owner1"
+        )
+
+        response = self.client.post(
+            "/accounts",
+            json={
+                "account_number": "SEC001",
+                "initial_balance": 100,
+                "customer_id": None
+            },
+            headers=self.auth_header(
+                token
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        cursor.execute(
+            """
+            SELECT users.username
+            FROM accounts
+            JOIN users
+                ON accounts.user_id = users.id
+            WHERE accounts.account_number = %s
+            """,
+            ("SEC001",)
+        )
+
+        result = cursor.fetchone()
+
+        self.assertEqual(
+            result[0],
+            "owner1"
+        )
+
+    def test_other_user_cannot_access_account(self):
+        owner_token = self.create_user_and_token(
+            "owner2"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "SEC002",
+                "initial_balance": 200,
+                "customer_id": None
+            },
+            headers=self.auth_header(
+                owner_token
+            )
+        )
+
+        other_token = self.create_user_and_token(
+            "other2"
+        )
+
+        response = self.client.get(
+            "/balance/SEC002",
+            headers=self.auth_header(
+                other_token
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403
+        )
+
+    def test_owner_can_deposit(self):
+        token = self.create_user_and_token(
+            "owner3"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "SEC003",
+                "initial_balance": 100,
+                "customer_id": None
+            },
+            headers=self.auth_header(
+                token
+            )
+        )
+
+        response = self.client.post(
+            "/deposit",
+            json={
+                "account_number": "SEC003",
+                "amount": 50
+            },
+            headers=self.auth_header(
+                token
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.json()["balance"],
+            150
+        )
+
+    def test_transfer_between_users(self):
+        sender_token = self.create_user_and_token(
+            "sender1"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "SEC004",
+                "initial_balance": 500,
+                "customer_id": None
+            },
+            headers=self.auth_header(
+                sender_token
+            )
+        )
+
+        receiver_token = self.create_user_and_token(
+            "receiver1"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "SEC005",
+                "initial_balance": 100,
+                "customer_id": None
+            },
+            headers=self.auth_header(
+                receiver_token
+            )
+        )
+
+        response = self.client.post(
+            "/transfer",
+            json={
+                "from_account": "SEC004",
+                "to_account": "SEC005",
+                "amount": 100
+            },
+            headers=self.auth_header(
+                sender_token
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        cursor.execute(
+            """
+            SELECT balance
+            FROM accounts
+            WHERE account_number = %s
+            """,
+            ("SEC005",)
+        )
+
+        balance = cursor.fetchone()[0]
+
+        self.assertEqual(
+            balance,
+            200
+        )
 
 if __name__ == "__main__":
     unittest.main()

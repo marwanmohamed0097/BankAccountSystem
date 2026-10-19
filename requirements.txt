@@ -3,3 +3,5 @@ python-dotenv
 bcrypt
 fastapi
 uvicorn
+PyJWT
+httpx
