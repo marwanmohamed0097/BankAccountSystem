@@ -2,8 +2,7 @@
 
 from mysql.connector import Error, IntegrityError
 
-from .db.database import connection, cursor
-from .models.customer import Customer
+from .db.database import get_connection
 
 
 class Account(ABC):
@@ -15,49 +14,11 @@ class Account(ABC):
 
 class BankAccountSystem(Account):
 
-    def create_customer(
+    def _customer_exists(
         self,
-        customer_id,
-        name,
-        address,
-        phone,
-        email
+        cursor,
+        customer_id
     ):
-        sql = """
-        INSERT INTO customers (
-            customer_id,
-            name,
-            address,
-            phone,
-            email
-        )
-        VALUES (%s, %s, %s, %s, %s)
-        """
-
-        values = (
-            customer_id,
-            name,
-            address,
-            phone,
-            email
-        )
-
-        try:
-            cursor.execute(sql, values)
-            connection.commit()
-
-            print("Customer created successfully")
-
-        except IntegrityError:
-            connection.rollback()
-            print("Customer already exists.")
-
-        except Error as error:
-            connection.rollback()
-            print("Database error:", error)
-
-    def customer_exists(self, customer_id):
-
         sql = """
         SELECT customer_id
         FROM customers
@@ -69,70 +30,40 @@ class BankAccountSystem(Account):
             (customer_id,)
         )
 
-        result = cursor.fetchone()
+        return cursor.fetchone() is not None
 
-        return result is not None
-
-    def create_account(
+    def _get_balance(
         self,
+        cursor,
         account_number,
-        initial_balance=0,
-        customer_id=None,
-        user_id=None
+        for_update=False
     ):
-
-        if initial_balance < 0:
-            print("Initial balance cannot be negative.")
-            return False
-
-        if customer_id is not None:
-
-            if not self.customer_exists(
-                customer_id
-            ):
-                print("Customer does not exist.")
-                return False
-
         sql = """
-        INSERT INTO accounts (
-            account_number,
-            balance,
-            customer_id,
-            user_id
-        )
-        VALUES (%s, %s, %s, %s)
+        SELECT balance
+        FROM accounts
+        WHERE account_number = %s
         """
 
-        values = (
-            account_number,
-            initial_balance,
-            customer_id,
-            user_id
+        if for_update:
+            sql += " FOR UPDATE"
+
+        cursor.execute(
+            sql,
+            (account_number,)
         )
 
-        try:
-            cursor.execute(
-                sql,
-                values
+        result = cursor.fetchone()
+
+        if result is None:
+            raise ValueError(
+                "Account does not exist."
             )
 
-            connection.commit()
+        return result[0]
 
-            print("Account created successfully")
-            return True
-
-        except IntegrityError:
-            connection.rollback()
-            print("Account already exists.")
-            return False
-
-        except Error as error:
-            connection.rollback()
-            print("Database error:", error)
-            return False
-
-    def save_transaction(
+    def _save_transaction(
         self,
+        cursor,
         account_number,
         transaction_type,
         amount
@@ -157,23 +88,258 @@ class BankAccountSystem(Account):
             )
         )
 
+    def create_customer(
+        self,
+        customer_id,
+        name,
+        address,
+        phone,
+        email
+    ):
+        connection = None
+        cursor = None
+
+        sql = """
+        INSERT INTO customers (
+            customer_id,
+            name,
+            address,
+            phone,
+            email
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        """
+
+        values = (
+            customer_id,
+            name,
+            address,
+            phone,
+            email
+        )
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            cursor.execute(
+                sql,
+                values
+            )
+
+            connection.commit()
+
+            print("Customer created successfully")
+            return True
+
+        except IntegrityError:
+            if connection:
+                connection.rollback()
+
+            print("Customer already exists.")
+            return False
+
+        except Error as error:
+            if connection:
+                connection.rollback()
+
+            print("Database error:", error)
+            return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
+
+    def customer_exists(
+        self,
+        customer_id
+    ):
+        connection = None
+        cursor = None
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            return self._customer_exists(
+                cursor,
+                customer_id
+            )
+
+        except Error as error:
+            print("Database error:", error)
+            return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
+
+    def create_account(
+        self,
+        account_number,
+        initial_balance=0,
+        customer_id=None,
+        user_id=None
+    ):
+        if initial_balance < 0:
+            print(
+                "Initial balance cannot be negative."
+            )
+            return False
+
+        connection = None
+        cursor = None
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            if customer_id is not None:
+                customer_found = (
+                    self._customer_exists(
+                        cursor,
+                        customer_id
+                    )
+                )
+
+                if not customer_found:
+                    print(
+                        "Customer does not exist."
+                    )
+                    return False
+
+            sql = """
+            INSERT INTO accounts (
+                account_number,
+                balance,
+                customer_id,
+                user_id
+            )
+            VALUES (%s, %s, %s, %s)
+            """
+
+            values = (
+                account_number,
+                initial_balance,
+                customer_id,
+                user_id
+            )
+
+            cursor.execute(
+                sql,
+                values
+            )
+
+            connection.commit()
+
+            print(
+                "Account created successfully"
+            )
+            return True
+
+        except IntegrityError:
+            if connection:
+                connection.rollback()
+
+            print("Account already exists.")
+            return False
+
+        except Error as error:
+            if connection:
+                connection.rollback()
+
+            print("Database error:", error)
+            return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
+
+    def save_transaction(
+        self,
+        account_number,
+        transaction_type,
+        amount
+    ):
+        connection = None
+        cursor = None
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            self._save_transaction(
+                cursor,
+                account_number,
+                transaction_type,
+                amount
+            )
+
+            connection.commit()
+            return True
+
+        except Error as error:
+            if connection:
+                connection.rollback()
+
+            print(
+                "Transaction save failed:",
+                error
+            )
+            return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
+
     def deposit(
         self,
         account_number,
         amount
     ):
-
         if amount <= 0:
-            print("Deposit amount must be positive.")
+            print(
+                "Deposit amount must be positive."
+            )
             return False
 
-        sql = """
-        UPDATE accounts
-        SET balance = balance + %s
-        WHERE account_number = %s
-        """
+        connection = None
+        cursor = None
 
         try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            sql = """
+            UPDATE accounts
+            SET balance = balance + %s
+            WHERE account_number = %s
+            """
+
             cursor.execute(
                 sql,
                 (
@@ -185,11 +351,13 @@ class BankAccountSystem(Account):
             if cursor.rowcount == 0:
                 connection.rollback()
 
-                print("Account does not exist.")
-
+                print(
+                    "Account does not exist."
+                )
                 return False
 
-            self.save_transaction(
+            self._save_transaction(
+                cursor,
                 account_number,
                 "Deposit",
                 amount
@@ -198,127 +366,95 @@ class BankAccountSystem(Account):
             connection.commit()
 
             print("Deposit successful")
-
             return True
 
         except Error as error:
-            connection.rollback()
+            if connection:
+                connection.rollback()
 
             print(
                 "Deposit failed:",
                 error
             )
-
             return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def get_balance(
         self,
         account_number
     ):
+        connection = None
+        cursor = None
 
-        sql = """
-        SELECT balance
-        FROM accounts
-        WHERE account_number = %s
-        """
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
 
-        cursor.execute(
-            sql,
-            (account_number,)
-        )
-
-        result = cursor.fetchone()
-
-        if result is None:
-            raise ValueError(
-                "Account does not exist."
+            return self._get_balance(
+                cursor,
+                account_number
             )
 
-        return result[0]
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def withdraw(
         self,
         account_number,
         amount
     ):
-
         if amount <= 0:
-            print("Withdrawal amount must be positive.")
-            return False
-
-        try:
-            balance = self.get_balance(account_number)
-
-        except ValueError:
-            print("Account does not exist.")
-            return False
-
-        if balance < amount:
-            print("Insufficient funds.")
-            return False
-
-        sql = """
-        UPDATE accounts
-        SET balance = balance - %s
-        WHERE account_number = %s
-        """
-
-        try:
-            cursor.execute(
-                sql,
-                (amount, account_number)
+            print(
+                "Withdrawal amount must be positive."
             )
+            return False
 
-            if cursor.rowcount == 0:
+        connection = None
+        cursor = None
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            try:
+                balance = self._get_balance(
+                    cursor,
+                    account_number,
+                    for_update=True
+                )
+
+            except ValueError:
                 connection.rollback()
-                print("Account does not exist.")
+
+                print(
+                    "Account does not exist."
+                )
                 return False
 
-            self.save_transaction(
-                account_number,
-                "Withdraw",
-                amount
-            )
+            if balance < amount:
+                connection.rollback()
 
-            connection.commit()
+                print(
+                    "Insufficient funds."
+                )
+                return False
 
-            print("Withdrawal successful")
-            return True
-
-        except Error as error:
-            connection.rollback()
-            print("Withdrawal failed:", error)
-            return False
-
-
-    def transfer(
-        self,
-        from_account,
-        to_account,
-        amount
-    ):
-
-        if from_account == to_account:
-            print("Cannot transfer to the same account.")
-            return False
-
-        if amount <= 0:
-            print("Transfer amount must be positive.")
-            return False
-
-        try:
-            from_balance = self.get_balance(from_account)
-            self.get_balance(to_account)
-
-        except ValueError:
-            print("One of the accounts does not exist.")
-            return False
-
-        if from_balance < amount:
-            print("Insufficient funds.")
-            return False
-
-        try:
             sql = """
             UPDATE accounts
             SET balance = balance - %s
@@ -327,7 +463,123 @@ class BankAccountSystem(Account):
 
             cursor.execute(
                 sql,
-                (amount, from_account)
+                (
+                    amount,
+                    account_number
+                )
+            )
+
+            self._save_transaction(
+                cursor,
+                account_number,
+                "Withdraw",
+                amount
+            )
+
+            connection.commit()
+
+            print(
+                "Withdrawal successful"
+            )
+            return True
+
+        except Error as error:
+            if connection:
+                connection.rollback()
+
+            print(
+                "Withdrawal failed:",
+                error
+            )
+            return False
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
+
+    def transfer(
+        self,
+        from_account,
+        to_account,
+        amount
+    ):
+        if from_account == to_account:
+            print(
+                "Cannot transfer to the same account."
+            )
+            return False
+
+        if amount <= 0:
+            print(
+                "Transfer amount must be positive."
+            )
+            return False
+
+        connection = None
+        cursor = None
+
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            accounts = sorted(
+                [
+                    from_account,
+                    to_account
+                ]
+            )
+
+            balances = {}
+
+            for account_number in accounts:
+                try:
+                    balances[account_number] = (
+                        self._get_balance(
+                            cursor,
+                            account_number,
+                            for_update=True
+                        )
+                    )
+
+                except ValueError:
+                    connection.rollback()
+
+                    print(
+                        "One of the accounts "
+                        "does not exist."
+                    )
+                    return False
+
+            from_balance = balances[
+                from_account
+            ]
+
+            if from_balance < amount:
+                connection.rollback()
+
+                print(
+                    "Insufficient funds."
+                )
+                return False
+
+            sql = """
+            UPDATE accounts
+            SET balance = balance - %s
+            WHERE account_number = %s
+            """
+
+            cursor.execute(
+                sql,
+                (
+                    amount,
+                    from_account
+                )
             )
 
             sql = """
@@ -338,16 +590,21 @@ class BankAccountSystem(Account):
 
             cursor.execute(
                 sql,
-                (amount, to_account)
+                (
+                    amount,
+                    to_account
+                )
             )
 
-            self.save_transaction(
+            self._save_transaction(
+                cursor,
                 from_account,
                 "Transfer Out",
                 amount
             )
 
-            self.save_transaction(
+            self._save_transaction(
+                cursor,
                 to_account,
                 "Transfer In",
                 amount
@@ -359,22 +616,41 @@ class BankAccountSystem(Account):
             return True
 
         except Error as error:
-            connection.rollback()
-            print("Transfer failed:", error)
+            if connection:
+                connection.rollback()
+
+            print(
+                "Transfer failed:",
+                error
+            )
             return False
 
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def delete_account(
         self,
         account_number
     ):
-
-        sql = """
-        DELETE FROM accounts
-        WHERE account_number = %s
-        """
+        connection = None
+        cursor = None
 
         try:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            sql = """
+            DELETE FROM accounts
+            WHERE account_number = %s
+            """
+
             cursor.execute(
                 sql,
                 (account_number,)
@@ -382,96 +658,162 @@ class BankAccountSystem(Account):
 
             if cursor.rowcount == 0:
                 connection.rollback()
-                print("Account does not exist.")
+
+                print(
+                    "Account does not exist."
+                )
                 return False
 
             connection.commit()
 
-            print("Account deleted successfully")
+            print(
+                "Account deleted successfully"
+            )
             return True
 
         except Error as error:
-            connection.rollback()
-            print("Delete failed:", error)
+            if connection:
+                connection.rollback()
+
+            print(
+                "Delete failed:",
+                error
+            )
             return False
 
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def show_transactions(self):
+        connection = None
+        cursor = None
 
-        sql = """
-        SELECT *
-        FROM transactions
-        """
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
 
-        cursor.execute(sql)
+            sql = """
+            SELECT *
+            FROM transactions
+            """
 
-        results = cursor.fetchall()
+            cursor.execute(sql)
 
-        if not results:
-            print(
-                "No transactions."
-            )
+            results = cursor.fetchall()
 
-            return
+            if not results:
+                print(
+                    "No transactions."
+                )
+                return
 
-        for transaction in results:
-            print(transaction)
+            for transaction in results:
+                print(transaction)
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def show_account_transactions(
         self,
         account_number
     ):
+        connection = None
+        cursor = None
 
-        sql = """
-        SELECT transactions.*
-        FROM transactions
-        JOIN accounts
-            ON transactions.account_id = accounts.id
-        WHERE accounts.account_number = %s
-        """
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
 
-        cursor.execute(
-            sql,
-            (account_number,)
-        )
+            sql = """
+            SELECT transactions.*
+            FROM transactions
+            JOIN accounts
+                ON transactions.account_id = accounts.id
+            WHERE accounts.account_number = %s
+            """
 
-        results = cursor.fetchall()
+            cursor.execute(
+                sql,
+                (account_number,)
+            )
 
-        if not results:
-            print("No transactions.")
-            return
+            results = cursor.fetchall()
 
-        for transaction in results:
-            print(transaction)
+            if not results:
+                print(
+                    "No transactions."
+                )
+                return
 
+            for transaction in results:
+                print(transaction)
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
     def show_customer_accounts(
         self,
         customer_id
     ):
+        connection = None
+        cursor = None
 
-        sql = """
-        SELECT account_number, balance
-        FROM accounts
-        WHERE customer_id = %s
-        """
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
 
-        cursor.execute(
-            sql,
-            (customer_id,)
-        )
+            sql = """
+            SELECT account_number, balance
+            FROM accounts
+            WHERE customer_id = %s
+            """
 
-        results = cursor.fetchall()
-
-        if not results:
-            print(
-                "Customer has no accounts."
+            cursor.execute(
+                sql,
+                (customer_id,)
             )
 
-            return
+            results = cursor.fetchall()
 
-        for account in results:
-            print(account)
+            if not results:
+                print(
+                    "Customer has no accounts."
+                )
+                return
+
+            for account in results:
+                print(account)
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if (
+                connection
+                and connection.is_connected()
+            ):
+                connection.close()
 
 
 class SavingsAccount(
@@ -483,9 +825,10 @@ class SavingsAccount(
         account_number,
         amount
     ):
-
         if amount > 500:
-            print("Maximum withdrawal is 500 Euro.")
+            print(
+                "Maximum withdrawal is 500 Euro."
+            )
             return False
 
         return super().withdraw(
@@ -495,8 +838,4 @@ class SavingsAccount(
 
 
 if __name__ == "__main__":
-
     bank = BankAccountSystem()
-
-    cursor.close()
-    connection.close()

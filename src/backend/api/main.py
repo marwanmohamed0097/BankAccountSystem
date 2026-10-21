@@ -9,6 +9,7 @@ from fastapi.security import (
     HTTPBearer
 )
 
+from mysql.connector import Error
 from pydantic import BaseModel
 
 from src.backend.auth.auth_service import AuthService
@@ -17,8 +18,13 @@ from src.backend.auth.token_service import (
     decode_access_token
 )
 
-from src.backend.bank_account_system import BankAccountSystem
-from src.backend.db.database import cursor
+from src.backend.bank_account_system import (
+    BankAccountSystem
+)
+
+from src.backend.db.database import (
+    get_connection
+)
 
 
 app = FastAPI()
@@ -82,75 +88,132 @@ def get_current_user(
             detail="Invalid token"
         )
 
-    cursor.execute(
-        """
-        SELECT id, username, role
-        FROM users
-        WHERE id = %s
-        """,
-        (user_id,)
-    )
+    connection = None
+    cursor = None
 
-    user = cursor.fetchone()
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
 
-    if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User does not exist"
+        cursor.execute(
+            """
+            SELECT id, username, role
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,)
         )
 
-    return {
-        "id": user[0],
-        "username": user[1],
-        "role": user[2]
-    }
+        user = cursor.fetchone()
+
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="User does not exist"
+            )
+
+        return {
+            "id": user[0],
+            "username": user[1],
+            "role": user[2]
+        }
+
+    except HTTPException:
+        raise
+
+    except Error:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error"
+        )
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if (
+            connection
+            and connection.is_connected()
+        ):
+            connection.close()
 
 
 def require_account_access(
     account_number,
     current_user
 ):
-    cursor.execute(
-        """
-        SELECT user_id
-        FROM accounts
-        WHERE account_number = %s
-        """,
-        (account_number,)
-    )
+    connection = None
+    cursor = None
 
-    account = cursor.fetchone()
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
 
-    if account is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Account does not exist"
+        cursor.execute(
+            """
+            SELECT user_id
+            FROM accounts
+            WHERE account_number = %s
+            """,
+            (account_number,)
         )
 
-    if current_user["role"] == "ADMIN":
+        account = cursor.fetchone()
+
+        if account is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Account does not exist"
+            )
+
+        if current_user["role"] == "ADMIN":
+            return True
+
+        owner_id = account[0]
+
+        if owner_id != current_user["id"]:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "You do not have access "
+                    "to this account"
+                )
+            )
+
         return True
 
-    owner_id = account[0]
+    except HTTPException:
+        raise
 
-    if owner_id != current_user["id"]:
+    except Error:
         raise HTTPException(
-            status_code=403,
-            detail="You do not have access to this account"
+            status_code=500,
+            detail="Database error"
         )
 
-    return True
+    finally:
+        if cursor:
+            cursor.close()
+
+        if (
+            connection
+            and connection.is_connected()
+        ):
+            connection.close()
 
 
 @app.get("/")
 def home():
     return {
-        "message": "Bank Account System API is running"
+        "message":
+            "Bank Account System API is running"
     }
 
 
 @app.post("/register")
-def register(data: RegisterRequest):
-
+def register(
+    data: RegisterRequest
+):
     success = auth.create_user(
         data.username,
         data.password
@@ -163,13 +226,15 @@ def register(data: RegisterRequest):
         )
 
     return {
-        "message": "User created successfully"
+        "message":
+            "User created successfully"
     }
 
 
 @app.post("/login")
-def login(data: LoginRequest):
-
+def login(
+    data: LoginRequest
+):
     user = auth.authenticate(
         data.username,
         data.password
@@ -178,7 +243,9 @@ def login(data: LoginRequest):
     if user is None:
         raise HTTPException(
             status_code=401,
-            detail="Invalid username or password"
+            detail=(
+                "Invalid username or password"
+            )
         )
 
     token = create_access_token(
@@ -209,7 +276,6 @@ def create_account(
         get_current_user
     )
 ):
-
     success = bank.create_account(
         data.account_number,
         data.initial_balance,
@@ -220,31 +286,43 @@ def create_account(
     if not success:
         raise HTTPException(
             status_code=400,
-            detail="Account could not be created"
+            detail=(
+                "Account could not be created"
+            )
         )
 
     return {
-        "message": "Account created successfully",
-        "account_number": data.account_number
+        "message":
+            "Account created successfully",
+        "account_number":
+            data.account_number
     }
 
 
-@app.get("/balance/{account_number}")
+@app.get(
+    "/balance/{account_number}"
+)
 def get_balance(
     account_number: str,
     current_user: dict = Depends(
         get_current_user
     )
 ):
-
     require_account_access(
         account_number,
         current_user
     )
 
-    balance = bank.get_balance(
-        account_number
-    )
+    try:
+        balance = bank.get_balance(
+            account_number
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Account does not exist"
+        )
 
     return {
         "account_number": account_number,
@@ -259,7 +337,6 @@ def deposit(
         get_current_user
     )
 ):
-
     require_account_access(
         data.account_number,
         current_user
@@ -282,7 +359,8 @@ def deposit(
 
     return {
         "message": "Deposit successful",
-        "account_number": data.account_number,
+        "account_number":
+            data.account_number,
         "balance": balance
     }
 
@@ -294,7 +372,6 @@ def withdraw(
         get_current_user
     )
 ):
-
     require_account_access(
         data.account_number,
         current_user
@@ -316,8 +393,10 @@ def withdraw(
     )
 
     return {
-        "message": "Withdrawal successful",
-        "account_number": data.account_number,
+        "message":
+            "Withdrawal successful",
+        "account_number":
+            data.account_number,
         "balance": balance
     }
 
@@ -329,7 +408,6 @@ def transfer(
         get_current_user
     )
 ):
-
     require_account_access(
         data.from_account,
         current_user
@@ -348,62 +426,95 @@ def transfer(
         )
 
     return {
-        "message": "Transfer successful",
-        "from_account": data.from_account,
-        "from_balance": bank.get_balance(
-            data.from_account
-        )
+        "message":
+            "Transfer successful",
+        "from_account":
+            data.from_account,
+        "from_balance":
+            bank.get_balance(
+                data.from_account
+            )
     }
 
 
-@app.get("/transactions/{account_number}")
+@app.get(
+    "/transactions/{account_number}"
+)
 def get_transactions(
     account_number: str,
     current_user: dict = Depends(
         get_current_user
     )
 ):
-
     require_account_access(
         account_number,
         current_user
     )
 
-    cursor.execute(
-        """
-        SELECT
-            transactions.transaction_type,
-            transactions.amount
-        FROM transactions
-        JOIN accounts
-            ON transactions.account_id = accounts.id
-        WHERE accounts.account_number = %s
-        """,
-        (account_number,)
-    )
+    connection = None
+    cursor = None
 
-    transactions = cursor.fetchall()
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
 
-    return {
-        "account_number": account_number,
-        "transactions": [
-            {
-                "type": transaction[0],
-                "amount": float(transaction[1])
-            }
-            for transaction in transactions
-        ]
-    }
+        cursor.execute(
+            """
+            SELECT
+                transactions.transaction_type,
+                transactions.amount
+            FROM transactions
+            JOIN accounts
+                ON transactions.account_id =
+                   accounts.id
+            WHERE accounts.account_number = %s
+            """,
+            (account_number,)
+        )
+
+        transactions = cursor.fetchall()
+
+        return {
+            "account_number":
+                account_number,
+            "transactions": [
+                {
+                    "type":
+                        transaction[0],
+                    "amount":
+                        float(transaction[1])
+                }
+                for transaction
+                in transactions
+            ]
+        }
+
+    except Error:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error"
+        )
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if (
+            connection
+            and connection.is_connected()
+        ):
+            connection.close()
 
 
-@app.delete("/accounts/{account_number}")
+@app.delete(
+    "/accounts/{account_number}"
+)
 def delete_account(
     account_number: str,
     current_user: dict = Depends(
         get_current_user
     )
 ):
-
     require_account_access(
         account_number,
         current_user
@@ -416,10 +527,14 @@ def delete_account(
     if not success:
         raise HTTPException(
             status_code=400,
-            detail="Account could not be deleted"
+            detail=(
+                "Account could not be deleted"
+            )
         )
 
     return {
-        "message": "Account deleted successfully",
-        "account_number": account_number
+        "message":
+            "Account deleted successfully",
+        "account_number":
+            account_number
     }
