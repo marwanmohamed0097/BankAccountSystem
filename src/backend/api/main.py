@@ -4,30 +4,37 @@ from fastapi import (
     HTTPException
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer
 )
 
 from mysql.connector import Error
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.backend.auth.auth_service import AuthService
 from src.backend.auth.token_service import (
     create_access_token,
     decode_access_token
 )
-
-from src.backend.bank_account_system import (
-    BankAccountSystem
-)
-
-from src.backend.db.database import (
-    get_connection
-)
+from src.backend.bank_account_system import BankAccountSystem
+from src.backend.db.database import get_connection
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 auth = AuthService()
 bank = BankAccountSystem()
@@ -36,30 +43,64 @@ security = HTTPBearer()
 
 
 class RegisterRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    password: str = Field(
+        min_length=8,
+        max_length=128
+    )
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    password: str = Field(
+        min_length=8,
+        max_length=128
+    )
 
 
 class AccountRequest(BaseModel):
-    account_number: str
-    initial_balance: float = 0
-    customer_id: int | None = None
+    account_number: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    initial_balance: float = Field(
+        default=0,
+        ge=0
+    )
+    customer_id: int | None = Field(
+        default=None,
+        gt=0
+    )
 
 
 class AmountRequest(BaseModel):
-    account_number: str
-    amount: float
+    account_number: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    amount: float = Field(
+        gt=0
+    )
 
 
 class TransferRequest(BaseModel):
-    from_account: str
-    to_account: str
-    amount: float
+    from_account: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    to_account: str = Field(
+        min_length=3,
+        max_length=50
+    )
+    amount: float = Field(
+        gt=0
+    )
 
 
 def get_current_user(
@@ -269,6 +310,82 @@ def me(
     return current_user
 
 
+@app.get("/accounts")
+def get_accounts(
+    current_user: dict = Depends(
+        get_current_user
+    )
+):
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        if current_user["role"] == "ADMIN":
+            cursor.execute(
+                """
+                SELECT
+                    account_number,
+                    balance,
+                    customer_id,
+                    user_id
+                FROM accounts
+                ORDER BY id
+                """
+            )
+
+        else:
+            cursor.execute(
+                """
+                SELECT
+                    account_number,
+                    balance,
+                    customer_id,
+                    user_id
+                FROM accounts
+                WHERE user_id = %s
+                ORDER BY id
+                """,
+                (current_user["id"],)
+            )
+
+        accounts = cursor.fetchall()
+
+        return {
+            "accounts": [
+                {
+                    "account_number":
+                        account[0],
+                    "balance":
+                        float(account[1]),
+                    "customer_id":
+                        account[2],
+                    "user_id":
+                        account[3]
+                }
+                for account in accounts
+            ]
+        }
+
+    except Error:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error"
+        )
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if (
+            connection
+            and connection.is_connected()
+        ):
+            connection.close()
+
+
 @app.post("/accounts")
 def create_account(
     data: AccountRequest,
@@ -325,8 +442,10 @@ def get_balance(
         )
 
     return {
-        "account_number": account_number,
-        "balance": balance
+        "account_number":
+            account_number,
+        "balance":
+            balance
     }
 
 
@@ -358,10 +477,12 @@ def deposit(
     )
 
     return {
-        "message": "Deposit successful",
+        "message":
+            "Deposit successful",
         "account_number":
             data.account_number,
-        "balance": balance
+        "balance":
+            balance
     }
 
 
@@ -397,7 +518,8 @@ def withdraw(
             "Withdrawal successful",
         "account_number":
             data.account_number,
-        "balance": balance
+        "balance":
+            balance
     }
 
 
@@ -408,6 +530,14 @@ def transfer(
         get_current_user
     )
 ):
+    if data.from_account == data.to_account:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cannot transfer to the same account"
+            )
+        )
+
     require_account_access(
         data.from_account,
         current_user
@@ -468,6 +598,7 @@ def get_transactions(
                 ON transactions.account_id =
                    accounts.id
             WHERE accounts.account_number = %s
+            ORDER BY transactions.id
             """,
             (account_number,)
         )

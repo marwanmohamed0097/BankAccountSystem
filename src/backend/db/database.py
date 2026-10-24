@@ -14,11 +14,3 @@ def get_connection():
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME")
     )
-
-
-connection = get_connection()
-cursor = connection.cursor()
-
-
-if connection.is_connected():
-    print("Connected successfully")

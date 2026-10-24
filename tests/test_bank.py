@@ -6,11 +6,14 @@ os.environ["DB_NAME"] = "bank_system_test"
 
 
 from src.backend.bank_account_system import BankAccountSystem, SavingsAccount
-from src.backend.db.database import connection, cursor
+from src.backend.db.database import get_connection
 from src.backend.models.current_account import CurrentAccount
 from src.backend.auth.auth_service import AuthService
 from src.backend.api.main import app
 from fastapi.testclient import TestClient
+
+connection = get_connection()
+cursor = connection.cursor()
 
 
 class TestBankAccountSystem(unittest.TestCase):
@@ -26,7 +29,7 @@ class TestBankAccountSystem(unittest.TestCase):
             raise RuntimeError(
                 "Tests must only run on bank_system_test!"
             )
-
+        
     def setUp(self):
         # Clean database before every test
         cursor.execute("DELETE FROM transactions")
