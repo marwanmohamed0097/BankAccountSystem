@@ -856,5 +856,176 @@ class TestApiSecurity(unittest.TestCase):
             200
         )
 
+
+    def test_get_accounts_returns_only_owner_accounts(self):
+        owner_token = self.create_user_and_token(
+            "accountsowner"
+        )
+
+        other_token = self.create_user_and_token(
+            "accountsother"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "LIST001",
+                "initial_balance": 100,
+                "customer_id": None
+            },
+            headers=self.auth_header(owner_token)
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "LIST002",
+                "initial_balance": 200,
+                "customer_id": None
+            },
+            headers=self.auth_header(other_token)
+        )
+
+        response = self.client.get(
+            "/accounts",
+            headers=self.auth_header(owner_token)
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        accounts = response.json()["accounts"]
+
+        self.assertEqual(
+            len(accounts),
+            1
+        )
+
+        self.assertEqual(
+            accounts[0]["account_number"],
+            "LIST001"
+        )
+
+    def test_register_validation_short_username(self):
+        response = self.client.post(
+            "/register",
+            json={
+                "username": "ab",
+                "password": "12345678"
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            422
+        )
+
+    def test_register_validation_short_password(self):
+        response = self.client.post(
+            "/register",
+            json={
+                "username": "validuser",
+                "password": "123"
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            422
+        )
+
+    def test_account_validation_negative_balance(self):
+        token = self.create_user_and_token(
+            "validation1"
+        )
+
+        response = self.client.post(
+            "/accounts",
+            json={
+                "account_number": "VAL001",
+                "initial_balance": -1,
+                "customer_id": None
+            },
+            headers=self.auth_header(token)
+        )
+
+        self.assertEqual(
+            response.status_code,
+            422
+        )
+
+    def test_deposit_validation_zero_amount(self):
+        token = self.create_user_and_token(
+            "validation2"
+        )
+
+        self.client.post(
+            "/accounts",
+            json={
+                "account_number": "VAL002",
+                "initial_balance": 100,
+                "customer_id": None
+            },
+            headers=self.auth_header(token)
+        )
+
+        response = self.client.post(
+            "/deposit",
+            json={
+                "account_number": "VAL002",
+                "amount": 0
+            },
+            headers=self.auth_header(token)
+        )
+
+        self.assertEqual(
+            response.status_code,
+            422
+        )
+
+    def test_transfer_validation_zero_amount(self):
+        token = self.create_user_and_token(
+            "validation3"
+        )
+
+        response = self.client.post(
+            "/transfer",
+            json={
+                "from_account": "VAL003",
+                "to_account": "VAL004",
+                "amount": 0
+            },
+            headers=self.auth_header(token)
+        )
+
+        self.assertEqual(
+            response.status_code,
+            422
+        )
+
+    def test_cors_preflight(self):
+        response = self.client.options(
+            "/accounts",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET"
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.headers.get(
+                "access-control-allow-origin"
+            ),
+            "http://localhost:5173"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
