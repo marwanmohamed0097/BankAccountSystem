@@ -32,3 +32,41 @@ export async function getCurrentUser(token) {
 
   return response.json()
 }
+export async function getAccounts(token) {
+  const response = await fetch(`${API_URL}/accounts`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error("Could not load accounts")
+  }
+
+  return response.json()
+}
+
+export async function createAccount(
+  token,
+  accountNumber,
+  initialBalance
+) {
+  const response = await fetch(`${API_URL}/accounts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      account_number: accountNumber,
+      initial_balance: Number(initialBalance),
+      customer_id: null
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error("Could not create account")
+  }
+
+  return response.json()
+}

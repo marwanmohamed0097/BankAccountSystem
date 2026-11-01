@@ -26,6 +26,10 @@ function Dashboard() {
         Role: {user?.role}
       </p>
 
+      <button onClick={() => navigate("/accounts")}>
+        My Accounts
+      </button>
+
       <button onClick={handleLogout}>
         Logout
       </button>
