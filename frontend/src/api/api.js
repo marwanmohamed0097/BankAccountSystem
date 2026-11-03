@@ -70,3 +70,86 @@ export async function createAccount(
 
   return response.json()
 }
+
+export async function depositMoney(token, accountNumber, amount) {
+  const response = await fetch(`${API_URL}/deposit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      account_number: accountNumber,
+      amount: Number(amount)
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error("Deposit failed")
+  }
+
+  return response.json()
+}
+
+export async function withdrawMoney(token, accountNumber, amount) {
+  const response = await fetch(`${API_URL}/withdraw`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      account_number: accountNumber,
+      amount: Number(amount)
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error("Withdraw failed")
+  }
+
+  return response.json()
+}
+
+export async function transferMoney(
+  token,
+  fromAccount,
+  toAccount,
+  amount
+) {
+  const response = await fetch(`${API_URL}/transfer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      from_account: fromAccount,
+      to_account: toAccount,
+      amount: Number(amount)
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error("Transfer failed")
+  }
+
+  return response.json()
+}
+
+export async function getTransactions(token, accountNumber) {
+  const response = await fetch(
+    `${API_URL}/transactions/${accountNumber}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error("Could not load transactions")
+  }
+
+  return response.json()
+}
