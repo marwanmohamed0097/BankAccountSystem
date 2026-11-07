@@ -1026,6 +1026,19 @@ class TestApiSecurity(unittest.TestCase):
             "http://localhost:5173"
         )
 
+    def test_health_endpoint(self):
+        response = self.client.get("/health")
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.json()["status"],
+            "ok"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
