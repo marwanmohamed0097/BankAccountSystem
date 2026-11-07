@@ -251,6 +251,14 @@ def home():
     }
 
 
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "Bank Account System API"
+    }
+
 @app.post("/register")
 def register(
     data: RegisterRequest
