@@ -405,6 +405,73 @@ Planned improvements for future versions:
 
 The next development focus is to improve the backend structure first, then add authentication and FastAPI.
 
+## Project Status
+
+BankAccountSystem is a full-stack banking application built with:
+
+- Python
+- FastAPI
+- React
+- MySQL
+- JWT Authentication
+- bcrypt password hashing
+- Docker
+- GitHub Actions CI
+
+### Implemented Features
+
+- User registration and login
+- JWT authentication
+- Role-based authorization
+- Bank account creation
+- Deposit and withdrawal
+- Money transfers
+- Transaction history
+- Account ownership validation
+- Database transaction rollback
+- API health check
+- Docker backend health monitoring
+- Automated backend tests
+- Automated React build with GitHub Actions
+
+### Current Development Status
+
+- Backend: Completed
+- Frontend: Completed
+- Database: Completed
+- Authentication & Security: Completed
+- Docker: Completed
+- CI: Completed
+- CD / Deployment: In Progress
+
+### Testing
+
+The project currently contains 49 automated backend tests.
+
+GitHub Actions automatically runs the backend tests and builds the React frontend after every push to the `main` branch.
+
+### Architecture
+
+```text
+React Frontend
+      ↓
+FastAPI REST API
+      ↓
+JWT Authentication
+      ↓
+Business Logic
+      ↓
+MySQL Database
+```
+
+### Next Steps
+
+- Production deployment
+- Continuous Deployment
+- Final production configuration
+- Release `v1.0.0`
+
+
 ## Author
 
 Marwan Mohamed
