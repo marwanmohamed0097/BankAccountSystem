@@ -677,3 +677,8 @@ def delete_account(
         "account_number":
             account_number
     }
+
+@app.get("/version")
+def version():
+    return {"version": "1.0.0", "status": "stable"}
+
