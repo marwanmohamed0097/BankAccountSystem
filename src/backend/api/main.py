@@ -1,4 +1,5 @@
-from fastapi import (
+import time
+from fastapi import (, Request
     Depends,
     FastAPI,
     HTTPException
@@ -24,6 +25,18 @@ from src.backend.db.database import get_connection
 
 
 app = FastAPI()
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    print(
+        f"{request.method} {request.url.path} "
+        f"- {response.status_code} "
+        f"- {process_time:.3f}s"
+    )
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -681,4 +694,5 @@ def delete_account(
 @app.get("/version")
 def version():
     return {"version": "1.0.0", "status": "stable"}
+
 
