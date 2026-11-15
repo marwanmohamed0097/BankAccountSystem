@@ -1,5 +1,4 @@
-import time
-from fastapi import (, Request
+from fastapi import (
     Depends,
     FastAPI,
     HTTPException
@@ -25,18 +24,6 @@ from src.backend.db.database import get_connection
 
 
 app = FastAPI()
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    print(
-        f"{request.method} {request.url.path} "
-        f"- {response.status_code} "
-        f"- {process_time:.3f}s"
-    )
-    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -696,3 +683,10 @@ def version():
     return {"version": "1.0.0", "status": "stable"}
 
 
+@app.get("/info")
+def api_info():
+    return {
+        "name": "Bank Account System API",
+        "version": "1.0.0",
+        "status": "stable"
+    }
