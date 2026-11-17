@@ -690,3 +690,16 @@ def api_info():
         "version": "1.0.0",
         "status": "stable"
     }
+
+@app.get("/features")
+def api_features():
+    return {
+        "features": [
+            "authentication",
+            "accounts",
+            "deposit",
+            "withdraw",
+            "transfer",
+            "transaction_history"
+        ]
+    }
