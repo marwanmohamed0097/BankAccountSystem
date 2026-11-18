@@ -477,3 +477,29 @@ MySQL Database
 Marwan Mohamed
 
 Fachinformatiker für Anwendungsentwicklung
+## API Utility Endpoints
+
+The backend includes additional utility endpoints for monitoring and project information:
+
+- `GET /health` - Checks whether the API is running
+- `GET /info` - Returns API name, version, and status
+- `GET /features` - Lists the main banking features available in the API
+
+## Quality & DevOps
+
+- 49 automated backend tests
+- GitHub Actions CI pipeline
+- Docker support
+- Backend health monitoring
+- Production deployment preparation
+
+## Current Project Status
+
+- Backend: Completed
+- Frontend: Completed
+- Database: Completed
+- Authentication & Authorization: Completed
+- Automated Testing: Completed
+- Docker: Completed
+- CI: Completed
+- CD / Deployment: In Progress
