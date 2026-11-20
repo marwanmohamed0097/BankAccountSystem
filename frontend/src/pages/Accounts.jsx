@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useLanguage } from "../context/LanguageContext"
 
 import {
   createAccount,
@@ -13,6 +14,7 @@ import {
 
 function Accounts() {
   const { token } = useAuth()
+  const { t } = useLanguage()
   const navigate = useNavigate()
 
   const [accounts, setAccounts] = useState([])
@@ -48,7 +50,7 @@ function Accounts() {
         )
       }
     } catch {
-      setError("Could not load accounts.")
+      setError(t("couldNotLoadAccounts"))
     } finally {
       setLoading(false)
     }
@@ -74,11 +76,11 @@ function Accounts() {
       setAccountNumber("")
       setInitialBalance(0)
 
-      setMessage("Account created successfully.")
+      setMessage(t("accountCreated"))
 
       await loadAccounts()
     } catch {
-      setError("Could not create account.")
+      setError(t("couldNotCreateAccount"))
     }
   }
 
@@ -94,11 +96,11 @@ function Accounts() {
       )
 
       setAmount("")
-      setMessage("Deposit successful.")
+      setMessage(t("depositSuccessful"))
 
       await loadAccounts()
     } catch {
-      setError("Deposit failed.")
+      setError(t("depositFailed"))
     }
   }
 
@@ -114,11 +116,11 @@ function Accounts() {
       )
 
       setAmount("")
-      setMessage("Withdrawal successful.")
+      setMessage(t("withdrawalSuccessful"))
 
       await loadAccounts()
     } catch {
-      setError("Withdrawal failed.")
+      setError(t("withdrawalFailed"))
     }
   }
 
@@ -139,11 +141,11 @@ function Accounts() {
       setToAccount("")
       setTransferAmount("")
 
-      setMessage("Transfer successful.")
+      setMessage(t("transferSuccessful"))
 
       await loadAccounts()
     } catch {
-      setError("Transfer failed.")
+      setError(t("transferFailed"))
     }
   }
 
@@ -159,23 +161,23 @@ function Accounts() {
 
       setTransactions(data.transactions)
     } catch {
-      setError("Could not load transactions.")
+      setError(t("couldNotLoadTransactions"))
     }
   }
 
   return (
     <div>
-      <h1>Accounts</h1>
+      <h1>{t("accounts")}</h1>
 
       <button onClick={() => navigate("/dashboard")}>
-        Back to Dashboard
+        {t("backToDashboard")}
       </button>
 
-      <h2>Create Account</h2>
+      <h2>{t("createAccount")}</h2>
 
       <form onSubmit={handleCreateAccount}>
         <div>
-          <label>Account Number</label>
+          <label>{t("accountNumber")}</label>
 
           <input
             type="text"
@@ -188,7 +190,7 @@ function Accounts() {
         </div>
 
         <div>
-          <label>Initial Balance</label>
+          <label>{t("initialBalance")}</label>
 
           <input
             type="number"
@@ -203,19 +205,19 @@ function Accounts() {
         </div>
 
         <button type="submit">
-          Create Account
+          {t("createAccount")}
         </button>
       </form>
 
       {error && <p>{error}</p>}
       {message && <p>{message}</p>}
 
-      <h2>My Accounts</h2>
+      <h2>{t("myAccounts")}</h2>
 
       {loading ? (
-        <p>Loading...</p>
+        <p>{t("loading")}</p>
       ) : accounts.length === 0 ? (
-        <p>No accounts found.</p>
+        <p>{t("noAccounts")}</p>
       ) : (
         <>
           <ul>
@@ -223,15 +225,15 @@ function Accounts() {
               <li key={account.account_number}>
                 {account.account_number}
                 {" - "}
-                Balance: {account.balance}
+                {t("balance", { amount: account.balance })}
               </li>
             ))}
           </ul>
 
-          <h2>Bank Operations</h2>
+          <h2>{t("bankOperations")}</h2>
 
           <div>
-            <label>Select Account</label>
+            <label>{t("selectAccount")}</label>
 
             <select
               value={selectedAccount}
@@ -253,7 +255,7 @@ function Accounts() {
           </div>
 
           <div>
-            <label>Amount</label>
+            <label>{t("amount")}</label>
 
             <input
               type="number"
@@ -270,21 +272,21 @@ function Accounts() {
             type="button"
             onClick={handleDeposit}
           >
-            Deposit
+            {t("deposit")}
           </button>
 
           <button
             type="button"
             onClick={handleWithdraw}
           >
-            Withdraw
+            {t("withdraw")}
           </button>
 
-          <h2>Transfer</h2>
+          <h2>{t("transfer")}</h2>
 
           <form onSubmit={handleTransfer}>
             <div>
-              <label>From</label>
+              <label>{t("from")}</label>
 
               <input
                 value={selectedAccount}
@@ -293,7 +295,7 @@ function Accounts() {
             </div>
 
             <div>
-              <label>To Account</label>
+              <label>{t("toAccount")}</label>
 
               <input
                 type="text"
@@ -306,7 +308,7 @@ function Accounts() {
             </div>
 
             <div>
-              <label>Amount</label>
+              <label>{t("amount")}</label>
 
               <input
                 type="number"
@@ -323,21 +325,21 @@ function Accounts() {
             </div>
 
             <button type="submit">
-              Transfer
+              {t("transfer")}
             </button>
           </form>
 
-          <h2>Transaction History</h2>
+          <h2>{t("transactionHistory")}</h2>
 
           <button
             type="button"
             onClick={handleLoadTransactions}
           >
-            Load Transactions
+            {t("loadTransactions")}
           </button>
 
           {transactions.length === 0 ? (
-            <p>No transactions loaded.</p>
+            <p>{t("noTransactions")}</p>
           ) : (
             <ul>
               {transactions.map(

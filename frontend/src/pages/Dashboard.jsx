@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useLanguage } from "../context/LanguageContext"
 
 function Dashboard() {
   const {
@@ -8,6 +9,7 @@ function Dashboard() {
   } = useAuth()
 
   const navigate = useNavigate()
+  const { t } = useLanguage()
 
   function handleLogout() {
     logout()
@@ -16,22 +18,22 @@ function Dashboard() {
 
   return (
     <div>
-      <h1>Dashboard</h1>
+      <h1>{t("dashboard")}</h1>
 
       <h2>
-        Welcome {user?.username}
+        {t("welcome", { username: user?.username })}
       </h2>
 
       <p>
-        Role: {user?.role}
+        {t("role", { role: user?.role })}
       </p>
 
       <button onClick={() => navigate("/accounts")}>
-        My Accounts
+        {t("myAccounts")}
       </button>
 
       <button onClick={handleLogout}>
-        Logout
+        {t("logout")}
       </button>
     </div>
   )

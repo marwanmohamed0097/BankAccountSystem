@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useLanguage } from "../context/LanguageContext"
 
 function Login() {
   const [username, setUsername] = useState("")
@@ -10,6 +11,7 @@ function Login() {
 
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { t } = useLanguage()
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -21,7 +23,7 @@ function Login() {
       await login(username, password)
       navigate("/dashboard")
     } catch {
-      setError("Username or password is incorrect.")
+      setError(t("invalidCredentials"))
     } finally {
       setLoading(false)
     }
@@ -29,12 +31,12 @@ function Login() {
 
   return (
     <div>
-      <h1>Bank Account System</h1>
-      <h2>Login</h2>
+      <h1>{t("bankAccountSystem")}</h1>
+      <h2>{t("login")}</h2>
 
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Username</label>
+          <label>{t("username")}</label>
 
           <input
             type="text"
@@ -47,7 +49,7 @@ function Login() {
         </div>
 
         <div>
-          <label>Password</label>
+          <label>{t("password")}</label>
 
           <input
             type="password"
@@ -65,7 +67,7 @@ function Login() {
           type="submit"
           disabled={loading}
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? t("loggingIn") : t("login")}
         </button>
       </form>
     </div>

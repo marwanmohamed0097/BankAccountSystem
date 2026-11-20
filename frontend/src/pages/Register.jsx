@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useLanguage } from "../context/LanguageContext"
 
 function Register() {
   const [username, setUsername] = useState("")
@@ -7,6 +8,7 @@ function Register() {
   const [message, setMessage] = useState("")
 
   const navigate = useNavigate()
+  const { t } = useLanguage()
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -28,18 +30,18 @@ function Register() {
     if (response.ok) {
       navigate("/login")
     } else {
-      setMessage("Registration failed.")
+      setMessage(t("registrationFailed"))
     }
   }
 
   return (
     <div>
-      <h1>Register</h1>
+      <h1>{t("register")}</h1>
 
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Username"
+          placeholder={t("username")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -47,21 +49,21 @@ function Register() {
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t("password")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
 
         <button type="submit">
-          Register
+        {t("register")}
         </button>
       </form>
 
       {message && <p>{message}</p>}
 
       <Link to="/login">
-        Back to Login
+        {t("backToLogin")}
       </Link>
     </div>
   )
