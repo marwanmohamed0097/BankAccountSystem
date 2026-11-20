@@ -28,7 +28,10 @@ const messages = {
     transfer: "Transfer", from: "From", toAccount: "To Account",
     transferSuccessful: "Transfer successful.", transferFailed: "Transfer failed.",
     transactionHistory: "Transaction History", loadTransactions: "Load Transactions",
-    noTransactions: "No transactions loaded.", couldNotLoadTransactions: "Could not load transactions."
+    filterTransactions: "Filter by type", allTypes: "All types",
+    noTransactions: "No transactions loaded.",
+    noMatchingTransactions: "No transactions match this type.",
+    couldNotLoadTransactions: "Could not load transactions."
   },
   de: {
     language: "Sprache", bankAccountSystem: "Bankkontensystem", login: "Anmelden",
@@ -49,7 +52,10 @@ const messages = {
     transfer: "Überweisung", from: "Von", toAccount: "Empfängerkonto",
     transferSuccessful: "Überweisung erfolgreich.", transferFailed: "Überweisung fehlgeschlagen.",
     transactionHistory: "Transaktionsverlauf", loadTransactions: "Transaktionen laden",
-    noTransactions: "Keine Transaktionen geladen.", couldNotLoadTransactions: "Transaktionen konnten nicht geladen werden."
+    filterTransactions: "Nach Typ filtern", allTypes: "Alle Typen",
+    noTransactions: "Keine Transaktionen geladen.",
+    noMatchingTransactions: "Keine Transaktionen dieses Typs.",
+    couldNotLoadTransactions: "Transaktionen konnten nicht geladen werden."
   },
   ar: {
     language: "اللغة", bankAccountSystem: "نظام الحسابات البنكية", login: "تسجيل الدخول",
@@ -70,7 +76,10 @@ const messages = {
     transfer: "تحويل", from: "من حساب", toAccount: "إلى حساب",
     transferSuccessful: "تم التحويل بنجاح.", transferFailed: "فشلت عملية التحويل.",
     transactionHistory: "سجل المعاملات", loadTransactions: "عرض المعاملات",
-    noTransactions: "لا توجد معاملات معروضة.", couldNotLoadTransactions: "تعذر تحميل المعاملات."
+    filterTransactions: "تصفية حسب النوع", allTypes: "كل الأنواع",
+    noTransactions: "لا توجد معاملات معروضة.",
+    noMatchingTransactions: "مفيش معاملات من النوع ده.",
+    couldNotLoadTransactions: "تعذر تحميل المعاملات."
   }
 }
 

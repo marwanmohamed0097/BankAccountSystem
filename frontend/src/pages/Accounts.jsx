@@ -32,6 +32,17 @@ function Accounts() {
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(true)
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState("all")
+
+  const transactionTypes = [
+    ...new Set(transactions.map((transaction) => transaction.type))
+  ]
+
+  const filteredTransactions = transactionTypeFilter === "all"
+    ? transactions
+    : transactions.filter(
+        (transaction) => transaction.type === transactionTypeFilter
+      )
 
   async function loadAccounts() {
     try {
@@ -338,11 +349,35 @@ function Accounts() {
             {t("loadTransactions")}
           </button>
 
-          {transactions.length === 0 ? (
-            <p>{t("noTransactions")}</p>
+          <div>
+            <label htmlFor="transaction-type-filter">
+              {t("filterTransactions")}
+            </label>
+            <select
+              id="transaction-type-filter"
+              value={transactionTypeFilter}
+              onChange={(event) =>
+                setTransactionTypeFilter(event.target.value)
+              }
+            >
+              <option value="all">{t("allTypes")}</option>
+              {transactionTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filteredTransactions.length === 0 ? (
+            <p>
+              {transactions.length === 0
+                ? t("noTransactions")
+                : t("noMatchingTransactions")}
+            </p>
           ) : (
             <ul>
-              {transactions.map(
+              {filteredTransactions.map(
                 (transaction, index) => (
                   <li key={index}>
                     {transaction.type}
