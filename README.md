@@ -520,6 +520,10 @@ The backend includes additional utility endpoints for monitoring and project inf
 - Backend health monitoring
 - Production deployment preparation
 
+## Multilingual Interface
+
+The frontend supports three languages: English, German, and Arabic. The selected language is saved in the browser and restored on the next visit. Arabic uses a right-to-left layout, while English and German use a left-to-right layout.
+
 ## Current Project Status
 
 - Backend: Completed
